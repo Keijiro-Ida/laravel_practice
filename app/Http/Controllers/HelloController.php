@@ -4,17 +4,57 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use App\Models\Person;
+use App\Http\Requests\HelloRequest;
+use Validator;
 
 class HelloController extends Controller
 {
     public function index(Request $request) {
 
-        $items = DB::table('people')->get();
-        return view('hello.index', ['items'=>$items]);
+        $validator = Validator::make($request->query(), [
+            'id'=> 'required',
+            'pass' => 'required'
+        ]);
+
+        if($validator->fails()) {
+            $msg = 'クエリに問題あります。';
+        } else {
+            $msg = 'ID/PASSを受け付けました。';
+        }
+
+        return view('hello.index', ['msg'=>$msg]);
     }
     public function post(Request $request) {
 
-        return view('hello.index', ['msg'=>$request->msg]);
+        $rules = [
+            'name' => 'required',
+            'mail' => 'email',
+            'age' => 'numeric',
+
+        ];
+        $messages = [
+            'name.required' => '名前は必ず入れてね',
+            'mail.email' => 'メールアドレスが必要よん',
+            'age.numeric' => '年齢は整数で記入ください',
+            'age.min' => '年齢はゼロ以上でね。',
+            'age.max' => '年齢は200以下で。',
+        ];
+
+        $validator = Validator::make($request->all(), $rules, $messages);
+
+        $validator->sometimes('age', 'min:0', function($input) {
+            return is_numeric($input->age);
+        });
+        $validator->sometimes('age', 'max:200', function($input) {
+            return is_numeric($input->age);
+        });
+
+        if($validator->fails()) {
+            return redirect('/hello')->withErrors($validator)->withInput();
+        }
+
+        return view('hello.index', ['msg'=>'正しく入力されました']);
     }
 
     public function show(Request $request) {
@@ -78,6 +118,17 @@ class HelloController extends Controller
 
     public function rest(Request $request) {
         return view('hello.rest');
+    }
+
+    public function ses_get(Request $request) {
+        $sesdata = $request->session()->get('msg');
+        return view('hello.session', ['session_data'=>$sesdata]);
+    }
+
+    public function ses_put(Request $request) {
+        $msg = $request->input;
+        $request->session()->put('msg', $msg);
+        return redirect('hello/session');
     }
 
 }
